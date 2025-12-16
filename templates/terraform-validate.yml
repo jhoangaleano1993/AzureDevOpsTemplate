@@ -19,17 +19,12 @@ steps:
 
   - task: Bash@3
     displayName: 'Terraform Format Check'
-    ${{ if eq(parameters.strictFormatCheck, true) }}:
-    continueOnError: false
-    ${{ else }}:
-    continueOnError: true
+    continueOnError: ${{ eq(parameters.strictFormatCheck, false) }}
     inputs:
       targetType: 'inline'
       workingDirectory: '${{ parameters.workingDirectory }}'
       script: |
         echo "=== Verificando formato del código Terraform ==="
-        ${{ if eq(parameters.strictFormatCheck, true) }}:
-        # Modo estricto: falla si el código no está formateado
         terraform fmt -check -recursive -diff
         if [ $? -ne 0 ]; then
           echo "ERROR: El código Terraform no está correctamente formateado"
@@ -37,7 +32,3 @@ steps:
           exit 1
         fi
         echo "=== Formato verificado exitosamente ==="
-        ${{ else }}:
-        # Modo permisivo: solo muestra warning
-        terraform fmt -check -recursive || echo "WARNING: El código Terraform no está formateado correctamente"
-        ${{ endif }}
