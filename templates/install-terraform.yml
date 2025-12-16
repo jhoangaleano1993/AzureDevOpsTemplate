@@ -12,24 +12,20 @@ parameters:
 
 steps:
   - task: Bash@3
-    displayName: 'Install Terraform ${{ parameters.terraformVersion }}'
+    displayName: 'Install Terraform'
     inputs:
       targetType: 'inline'
       script: |
         # Verificar si Terraform ya está instalado
         if command -v terraform &> /dev/null; then
-          INSTALLED_VERSION=$(terraform version -json | jq -r '.terraform_version')
-          if [ "$INSTALLED_VERSION" = "${{ parameters.terraformVersion }}" ]; then
-            echo "Terraform ${{ parameters.terraformVersion }} ya está instalado"
-            exit 0
-          fi
+          echo "Terraform ya está instalado: $(terraform version)"
+        else
+          # Instalar Terraform
+          wget -q https://releases.hashicorp.com/terraform/${{ parameters.terraformVersion }}/terraform_${{ parameters.terraformVersion }}_linux_amd64.zip
+          unzip -q terraform_${{ parameters.terraformVersion }}_linux_amd64.zip
+          sudo mv terraform /usr/local/bin/
+          terraform version
         fi
-
-        # Instalar Terraform
-        wget -q https://releases.hashicorp.com/terraform/${{ parameters.terraformVersion }}/terraform_${{ parameters.terraformVersion }}_linux_amd64.zip
-        unzip -q terraform_${{ parameters.terraformVersion }}_linux_amd64.zip
-        sudo mv terraform /usr/local/bin/
-        terraform version
 
   - ${{ if eq(parameters.installAwsCli, true) }}:
     - task: Bash@3
@@ -40,14 +36,13 @@ steps:
           # Verificar si AWS CLI ya está instalado
           if command -v aws &> /dev/null; then
             echo "AWS CLI ya está instalado: $(aws --version)"
-            exit 0
+          else
+            # Instalar AWS CLI v2
+            curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -q awscliv2.zip
+            sudo ./aws/install
+            aws --version
           fi
-
-          # Instalar AWS CLI v2
-          curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip -q awscliv2.zip
-          sudo ./aws/install
-          aws --version
 
   - ${{ if eq(parameters.installKubectl, true) }}:
     - task: Bash@3
@@ -58,10 +53,9 @@ steps:
           # Verificar si kubectl ya está instalado
           if command -v kubectl &> /dev/null; then
             echo "kubectl ya está instalado: $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
-            exit 0
+          else
+            # Instalar kubectl
+            curl -sLO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+            kubectl version --client
           fi
-
-          # Instalar kubectl
-          curl -sLO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-          kubectl version --client
