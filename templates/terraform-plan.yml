@@ -1,0 +1,40 @@
+# Template para ejecutar terraform plan
+parameters:
+  - name: workingDirectory
+    type: string
+  - name: planOutputFile
+    type: string
+    default: 'tfplan'
+  - name: awsAccessKeyId
+    type: string
+  - name: awsSecretAccessKey
+    type: string
+  - name: awsRegion
+    type: string
+  - name: timeoutInMinutes
+    type: number
+    default: 15
+
+steps:
+  - task: Bash@3
+    displayName: 'Terraform Plan'
+    timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+    inputs:
+      targetType: 'inline'
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      script: |
+        echo "=== Iniciando Terraform Plan ==="
+        set -e  # Detener si hay errores
+        terraform plan -input=false -out=${{ parameters.planOutputFile }} -no-color
+        PLAN_EXIT_CODE=$?
+        if [ $PLAN_EXIT_CODE -ne 0 ]; then
+          echo "ERROR: Terraform plan falló con código de salida $PLAN_EXIT_CODE"
+          exit $PLAN_EXIT_CODE
+        fi
+        echo "=== Terraform Plan Completado Exitosamente ==="
+    env:
+      AWS_ACCESS_KEY_ID: ${{ parameters.awsAccessKeyId }}
+      AWS_SECRET_ACCESS_KEY: ${{ parameters.awsSecretAccessKey }}
+      AWS_DEFAULT_REGION: ${{ parameters.awsRegion }}
+      TF_IN_AUTOMATION: "true"
+      TF_LOG: ""

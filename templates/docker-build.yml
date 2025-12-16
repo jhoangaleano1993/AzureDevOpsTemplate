@@ -1,0 +1,49 @@
+parameters:
+  - name: imageName
+    type: string
+  - name: dockerfilePath
+    type: string
+  - name: awsRegion
+    type: string
+  - name: ecrRegistry
+    type: string
+  - name: buildArgs
+    type: string
+    default: ''
+  - name: tags
+    type: object
+
+steps:
+  - task: AWSCLI@1
+    displayName: 'AWS ECR Login'
+    inputs:
+      awsCredentials: 'AWS-ECR-Connection'
+      regionName: '${{ parameters.awsRegion }}'
+      awsCommand: 'ecr'
+      awsSubCommand: 'get-login-password'
+      awsArguments: '--region ${{ parameters.awsRegion }}'
+    env:
+      AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
+      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+
+  - script: |
+      aws ecr get-login-password --region ${{ parameters.awsRegion }} | docker login --username AWS --password-stdin ${{ parameters.ecrRegistry }}
+    displayName: 'Docker Login to ECR'
+    env:
+      AWS_ACCESS_KEY_ID: $(AWS_ACCESS_KEY_ID)
+      AWS_SECRET_ACCESS_KEY: $(AWS_SECRET_ACCESS_KEY)
+
+  - ${{ each tag in parameters.tags }}:
+    - task: Docker@2
+      displayName: 'Build and Push Docker Image - ${{ tag }}'
+      inputs:
+        command: 'buildAndPush'
+        repository: '${{ parameters.ecrRegistry }}/${{ parameters.imageName }}'
+        dockerfile: '${{ parameters.dockerfilePath }}'
+        tags: '${{ tag }}'
+        arguments: '${{ parameters.buildArgs }}'
+
+  - script: |
+      echo "Image built and pushed: ${{ parameters.ecrRegistry }}/${{ parameters.imageName }}"
+      echo "Tags: ${{ join(', ', parameters.tags) }}"
+    displayName: 'Display Image Info'

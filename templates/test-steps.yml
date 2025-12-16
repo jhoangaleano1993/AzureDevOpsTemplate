@@ -1,0 +1,28 @@
+parameters:
+  - name: testCommand
+    type: string
+    default: 'npm test'
+  - name: publishTestResults
+    type: boolean
+    default: true
+
+steps:
+  - script: |
+      ${{ parameters.testCommand }}
+    displayName: 'Run Tests'
+
+  - task: PublishTestResults@2
+    condition: and(always(), eq('${{ parameters.publishTestResults }}', true))
+    displayName: 'Publish Test Results'
+    inputs:
+      testResultsFormat: 'JUnit'
+      testResultsFiles: '**/coverage/junit.xml'
+      failTaskOnFailedTests: true
+
+  - task: PublishCodeCoverageResults@1
+    condition: and(always(), eq('${{ parameters.publishTestResults }}', true))
+    displayName: 'Publish Code Coverage'
+    inputs:
+      codeCoverageTool: 'Cobertura'
+      summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage/cobertura-coverage.xml'
+      reportDirectory: '$(System.DefaultWorkingDirectory)/coverage'

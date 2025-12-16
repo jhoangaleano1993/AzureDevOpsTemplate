@@ -1,0 +1,27 @@
+# Template para ejecutar terraform destroy
+parameters:
+  - name: workingDirectory
+    type: string
+  - name: awsAccessKeyId
+    type: string
+  - name: awsSecretAccessKey
+    type: string
+  - name: awsRegion
+    type: string
+
+steps:
+  - task: Bash@3
+    displayName: 'Terraform Destroy'
+    inputs:
+      targetType: 'inline'
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      script: |
+        echo "=== Iniciando Terraform Destroy ==="
+        terraform destroy -auto-approve -no-color
+        echo "=== Terraform Destroy Completado ==="
+    env:
+      AWS_ACCESS_KEY_ID: ${{ parameters.awsAccessKeyId }}
+      AWS_SECRET_ACCESS_KEY: ${{ parameters.awsSecretAccessKey }}
+      AWS_DEFAULT_REGION: ${{ parameters.awsRegion }}
+      TF_IN_AUTOMATION: "true"
+      TF_LOG: ""

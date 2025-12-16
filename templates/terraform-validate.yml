@@ -1,0 +1,43 @@
+# Template para validar y formatear código Terraform
+parameters:
+  - name: workingDirectory
+    type: string
+  - name: strictFormatCheck
+    type: boolean
+    default: false
+
+steps:
+  - task: Bash@3
+    displayName: 'Terraform Validate'
+    inputs:
+      targetType: 'inline'
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      script: |
+        echo "=== Validando sintaxis de Terraform ==="
+        terraform validate
+        echo "=== Validación completada exitosamente ==="
+
+  - task: Bash@3
+    displayName: 'Terraform Format Check'
+    ${{ if eq(parameters.strictFormatCheck, true) }}:
+    continueOnError: false
+    ${{ else }}:
+    continueOnError: true
+    inputs:
+      targetType: 'inline'
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      script: |
+        echo "=== Verificando formato del código Terraform ==="
+        ${{ if eq(parameters.strictFormatCheck, true) }}:
+        # Modo estricto: falla si el código no está formateado
+        terraform fmt -check -recursive -diff
+        if [ $? -ne 0 ]; then
+          echo "ERROR: El código Terraform no está correctamente formateado"
+          echo "Ejecuta 'terraform fmt -recursive' para corregir el formato"
+          exit 1
+        fi
+        echo "=== Formato verificado exitosamente ==="
+        ${{ else }}:
+        # Modo permisivo: solo muestra warning
+        terraform fmt -check -recursive || echo "WARNING: El código Terraform no está formateado correctamente"
+        ${{ endif }}

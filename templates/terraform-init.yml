@@ -1,0 +1,38 @@
+# Template para inicializar Terraform con backend S3
+parameters:
+  - name: workingDirectory
+    type: string
+  - name: backendS3Bucket
+    type: string
+  - name: backendKey
+    type: string
+  - name: backendRegion
+    type: string
+  - name: backendDynamoDBTable
+    type: string
+  - name: awsAccessKeyId
+    type: string
+  - name: awsSecretAccessKey
+    type: string
+  - name: awsRegion
+    type: string
+
+steps:
+  - task: Bash@3
+    displayName: 'Terraform Init'
+    inputs:
+      targetType: 'inline'
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      script: |
+        echo "=== Inicializando Terraform ==="
+        terraform init \
+          -backend-config="bucket=${{ parameters.backendS3Bucket }}" \
+          -backend-config="key=${{ parameters.backendKey }}" \
+          -backend-config="region=${{ parameters.backendRegion }}" \
+          -backend-config="dynamodb_table=${{ parameters.backendDynamoDBTable }}" \
+          -backend-config="encrypt=true"
+        echo "=== Terraform Init Completado ==="
+    env:
+      AWS_ACCESS_KEY_ID: ${{ parameters.awsAccessKeyId }}
+      AWS_SECRET_ACCESS_KEY: ${{ parameters.awsSecretAccessKey }}
+      AWS_DEFAULT_REGION: ${{ parameters.awsRegion }}

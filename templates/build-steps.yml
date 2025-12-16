@@ -1,0 +1,18 @@
+parameters:
+  - name: nodeVersion
+    type: string
+    default: '20.x'
+
+steps:
+  - task: NodeTool@0
+    displayName: 'Install Node.js'
+    inputs:
+      versionSpec: '${{ parameters.nodeVersion }}'
+
+  - script: |
+      npm ci
+    displayName: 'Install Dependencies'
+
+  - script: |
+      npm run lint || true
+    displayName: 'Run Linter'

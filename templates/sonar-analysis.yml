@@ -1,0 +1,28 @@
+parameters:
+  - name: sonarProjectKey
+    type: string
+  - name: sonarOrganization
+    type: string
+
+steps:
+  - task: SonarCloudPrepare@1
+    displayName: 'Prepare SonarCloud Analysis'
+    inputs:
+      SonarCloud: 'SonarCloud-Connection'
+      organization: '${{ parameters.sonarOrganization }}'
+      scannerMode: 'CLI'
+      configMode: 'manual'
+      cliProjectKey: '${{ parameters.sonarProjectKey }}'
+      cliProjectName: '${{ parameters.sonarProjectKey }}'
+      cliSources: 'src'
+      extraProperties: |
+        sonar.javascript.lcov.reportPaths=coverage/lcov.info
+        sonar.coverage.exclusions=**/*.test.js,**/__tests__/**
+
+  - task: SonarCloudAnalyze@1
+    displayName: 'Run SonarCloud Analysis'
+
+  - task: SonarCloudPublish@1
+    displayName: 'Publish SonarCloud Results'
+    inputs:
+      pollingTimeoutSec: '300'

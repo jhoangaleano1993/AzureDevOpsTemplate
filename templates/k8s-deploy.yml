@@ -1,0 +1,37 @@
+parameters:
+  - name: kubernetesServiceConnection
+    type: string
+  - name: namespace
+    type: string
+  - name: manifests
+    type: object
+  - name: imageName
+    type: string
+
+steps:
+  - task: KubernetesManifest@0
+    displayName: 'Deploy to Kubernetes'
+    inputs:
+      action: 'deploy'
+      kubernetesServiceConnection: '${{ parameters.kubernetesServiceConnection }}'
+      namespace: '${{ parameters.namespace }}'
+      manifests: ${{ parameters.manifests }}
+      containers: '${{ parameters.imageName }}'
+
+  - task: Kubernetes@1
+    displayName: 'Verify Deployment'
+    inputs:
+      connectionType: 'Kubernetes Service Connection'
+      kubernetesServiceEndpoint: '${{ parameters.kubernetesServiceConnection }}'
+      namespace: '${{ parameters.namespace }}'
+      command: 'get'
+      arguments: 'pods -l app=app-hola-mundo'
+
+  - task: Kubernetes@1
+    displayName: 'Get Service Info'
+    inputs:
+      connectionType: 'Kubernetes Service Connection'
+      kubernetesServiceEndpoint: '${{ parameters.kubernetesServiceConnection }}'
+      namespace: '${{ parameters.namespace }}'
+      command: 'get'
+      arguments: 'service app-hola-mundo-service'

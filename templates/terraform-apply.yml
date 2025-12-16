@@ -1,0 +1,37 @@
+# Template para ejecutar terraform apply
+parameters:
+  - name: workingDirectory
+    type: string
+  - name: planFile
+    type: string
+    default: 'tfplan'
+  - name: awsAccessKeyId
+    type: string
+  - name: awsSecretAccessKey
+    type: string
+  - name: awsRegion
+    type: string
+  - name: autoApprove
+    type: boolean
+    default: true
+
+steps:
+  - task: Bash@3
+    displayName: 'Terraform Apply'
+    inputs:
+      targetType: 'inline'
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      script: |
+        echo "=== Iniciando Terraform Apply ==="
+        ${{ if eq(parameters.autoApprove, true) }}:
+        terraform apply -auto-approve -no-color ${{ parameters.planFile }}
+        ${{ else }}:
+        terraform apply -no-color ${{ parameters.planFile }}
+        ${{ endif }}
+        echo "=== Terraform Apply Completado ==="
+    env:
+      AWS_ACCESS_KEY_ID: ${{ parameters.awsAccessKeyId }}
+      AWS_SECRET_ACCESS_KEY: ${{ parameters.awsSecretAccessKey }}
+      AWS_DEFAULT_REGION: ${{ parameters.awsRegion }}
+      TF_IN_AUTOMATION: "true"
+      TF_LOG: ""
