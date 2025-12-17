@@ -9,14 +9,37 @@ parameters:
     type: string
 
 steps:
+  - bash: |
+      echo "Replacing image placeholder in deployment manifests..."
+      echo "Target image: ${{ parameters.imageName }}"
+
+      # Create temp directory for modified manifests
+      mkdir -p $(Pipeline.Workspace)/k8s-modified
+
+      # Process each manifest file
+      for manifest in ${{ parameters.manifests }}; do
+        if [ -f "$manifest" ]; then
+          filename=$(basename "$manifest")
+          echo "Processing $filename..."
+
+          # Replace the image placeholder with actual ECR image
+          sed 's|image: app-hola-mundo:latest|image: ${{ parameters.imageName }}|g' "$manifest" > "$(Pipeline.Workspace)/k8s-modified/$filename"
+
+          echo "Modified manifest content:"
+          cat "$(Pipeline.Workspace)/k8s-modified/$filename"
+        fi
+      done
+    displayName: 'Prepare Kubernetes Manifests'
+
   - task: KubernetesManifest@0
     displayName: 'Deploy to Kubernetes'
     inputs:
       action: 'deploy'
       kubernetesServiceConnection: '${{ parameters.kubernetesServiceConnection }}'
       namespace: '${{ parameters.namespace }}'
-      manifests: ${{ parameters.manifests }}
-      containers: '${{ parameters.imageName }}'
+      manifests: |
+        $(Pipeline.Workspace)/k8s-modified/deployment.yaml
+        $(Pipeline.Workspace)/k8s-modified/service.yaml
 
   - task: Kubernetes@1
     displayName: 'Verify Deployment'
