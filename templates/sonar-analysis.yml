@@ -5,24 +5,24 @@ parameters:
     type: string
 
 steps:
-  - task: SonarQubePrepare@5
-    displayName: 'Prepare SonarQube Cloud Analysis'
+  - task: SonarCloudPrepare@4
+    displayName: 'Prepare SonarCloud Analysis'
     inputs:
-      SonarQube: 'SonarCloud-Connection'
+      SonarCloud: 'SonarCloud-Connection'
+      organization: '${{ parameters.sonarOrganization }}'
       scannerMode: 'CLI'
       configMode: 'manual'
       cliProjectKey: '${{ parameters.sonarProjectKey }}'
       cliProjectName: '${{ parameters.sonarProjectKey }}'
       cliSources: 'src'
       extraProperties: |
-        sonar.organization=${{ parameters.sonarOrganization }}
         sonar.javascript.lcov.reportPaths=coverage/lcov.info
         sonar.coverage.exclusions=**/*.test.js,**/__tests__/**
 
-  - task: SonarQubeAnalyze@5
-    displayName: 'Run SonarQube Cloud Analysis'
+  - task: SonarCloudAnalyze@4
+    displayName: 'Run SonarCloud Analysis'
 
-  - task: SonarQubePublish@5
-    displayName: 'Publish SonarQube Results'
+  - task: SonarCloudPublish@4
+    displayName: 'Publish SonarCloud Results'
     inputs:
       pollingTimeoutSec: '300'
