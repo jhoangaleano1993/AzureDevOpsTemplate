@@ -10,25 +10,34 @@ parameters:
 
 steps:
   - bash: |
+      set -e
+
+      TARGET_IMAGE="${{ parameters.imageName }}"
+      WORKSPACE="$(Pipeline.Workspace)"
+
       echo "Replacing image placeholder in deployment manifests..."
-      echo "Target image: ${{ parameters.imageName }}"
+      echo "Target image: ${TARGET_IMAGE}"
+      echo "Workspace: ${WORKSPACE}"
 
       # Create temp directory for modified manifests
-      mkdir -p $(Pipeline.Workspace)/k8s-modified
+      mkdir -p "${WORKSPACE}/k8s-modified"
 
-      # Process each manifest file
-      for manifest in ${{ parameters.manifests }}; do
-        if [ -f "$manifest" ]; then
-          filename=$(basename "$manifest")
-          echo "Processing $filename..."
+      # Process deployment.yaml
+      echo "Processing deployment.yaml..."
+      sed "s|image: app-hola-mundo:latest|image: ${TARGET_IMAGE}|g" \
+        "${WORKSPACE}/k8s/deployment.yaml" > "${WORKSPACE}/k8s-modified/deployment.yaml"
 
-          # Replace the image placeholder with actual ECR image
-          sed 's|image: app-hola-mundo:latest|image: ${{ parameters.imageName }}|g' "$manifest" > "$(Pipeline.Workspace)/k8s-modified/$filename"
+      # Copy service.yaml (no changes needed)
+      echo "Copying service.yaml..."
+      cp "${WORKSPACE}/k8s/service.yaml" "${WORKSPACE}/k8s-modified/service.yaml"
 
-          echo "Modified manifest content:"
-          cat "$(Pipeline.Workspace)/k8s-modified/$filename"
-        fi
-      done
+      echo ""
+      echo "Modified deployment.yaml - Image line:"
+      grep -A 2 "image:" "${WORKSPACE}/k8s-modified/deployment.yaml" || true
+
+      echo ""
+      echo "Files created:"
+      ls -la "${WORKSPACE}/k8s-modified/"
     displayName: 'Prepare Kubernetes Manifests'
 
   - task: KubernetesManifest@0
