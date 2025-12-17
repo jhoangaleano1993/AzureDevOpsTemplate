@@ -5,6 +5,13 @@ parameters:
     type: string
 
 steps:
+  # Configurar Java en el PATH para SonarCloud
+  - bash: |
+      echo "##vso[task.setvariable variable=JAVA_HOME]/usr/lib/jvm/java-21-openjdk-amd64"
+      echo "##vso[task.setvariable variable=PATH]/usr/lib/jvm/java-21-openjdk-amd64/bin:$PATH"
+      java -version
+    displayName: 'Setup Java for SonarCloud'
+
   - task: SonarCloudPrepare@4
     displayName: 'Prepare SonarCloud Analysis'
     inputs:
@@ -21,6 +28,9 @@ steps:
 
   - task: SonarCloudAnalyze@4
     displayName: 'Run SonarCloud Analysis'
+    env:
+      JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
+      PATH: /usr/lib/jvm/java-21-openjdk-amd64/bin:$(PATH)
 
   - task: SonarCloudPublish@4
     displayName: 'Publish SonarCloud Results'
