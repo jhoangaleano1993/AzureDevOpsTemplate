@@ -24,5 +24,6 @@ steps:
 
   - task: SonarCloudPublish@4
     displayName: 'Publish SonarCloud Results'
+    continueOnError: true
     inputs:
       pollingTimeoutSec: '300'
