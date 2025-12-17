@@ -1,9 +1,17 @@
 parameters:
-  - name: serviceUrl
+  - name: kubernetesServiceConnection
     type: string
+  - name: namespace
+    type: string
+  - name: serviceName
+    type: string
+    default: "app-hola-mundo-service"
+  - name: servicePort
+    type: number
+    default: 80
   - name: healthEndpoint
     type: string
-    default: '/health'
+    default: "/health"
   - name: maxRetries
     type: number
     default: 5
@@ -12,32 +20,11 @@ parameters:
     default: 10
 
 steps:
-  - script: |
-      echo "Testing connectivity to: ${{ parameters.serviceUrl }}${{ parameters.healthEndpoint }}"
-
-      SUCCESS=false
-      for i in $(seq 1 ${{ parameters.maxRetries }}); do
-        echo "Attempt $i of ${{ parameters.maxRetries }}"
-
-        RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" ${{ parameters.serviceUrl }}${{ parameters.healthEndpoint }} || echo "000")
-
-        if [ "$RESPONSE" = "200" ]; then
-          echo "✓ Service is healthy! (HTTP $RESPONSE)"
-          SUCCESS=true
-          break
-        else
-          echo "✗ Service not ready (HTTP $RESPONSE). Waiting ${{ parameters.retryDelay }} seconds..."
-          sleep ${{ parameters.retryDelay }}
-        fi
-      done
-
-      if [ "$SUCCESS" = false ]; then
-        echo "ERROR: Service failed to respond after ${{ parameters.maxRetries }} attempts"
-        exit 1
-      fi
-
-      # Additional connectivity test to root endpoint
-      echo "Testing root endpoint..."
-      curl -v ${{ parameters.serviceUrl }}/
-
-    displayName: 'Test Service Connectivity'
+  - task: Kubernetes@1
+    displayName: "Test Service Connectivity"
+    inputs:
+      connectionType: "Kubernetes Service Connection"
+      kubernetesServiceEndpoint: "${{ parameters.kubernetesServiceConnection }}"
+      namespace: "${{ parameters.namespace }}"
+      command: "run"
+      arguments: "test-connectivity --rm -i --restart=Never --image=curlimages/curl -- curl -sf --connect-timeout 10 --retry ${{ parameters.maxRetries }} --retry-delay ${{ parameters.retryDelay }} --retry-all-errors http://${{ parameters.serviceName }}.${{ parameters.namespace }}.svc.cluster.local:${{ parameters.servicePort }}${{ parameters.healthEndpoint }}"
