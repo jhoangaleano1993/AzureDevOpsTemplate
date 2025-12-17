@@ -9,7 +9,7 @@ steps:
   - bash: |
       echo "##vso[task.setvariable variable=JAVA_HOME]/usr/lib/jvm/java-21-openjdk-amd64"
       echo "##vso[task.setvariable variable=PATH]/usr/lib/jvm/java-21-openjdk-amd64/bin:$PATH"
-      java -version
+      /usr/lib/jvm/java-21-openjdk-amd64/bin/java -version
     displayName: 'Setup Java for SonarCloud'
 
   - task: SonarCloudPrepare@4
