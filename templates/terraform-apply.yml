@@ -11,17 +11,56 @@ parameters:
     type: string
   - name: awsRegion
     type: string
+  - name: timeoutInMinutes
+    type: number
+    default: 30
 
 steps:
   - task: Bash@3
     displayName: 'Terraform Apply'
+    timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
     inputs:
       targetType: 'inline'
       workingDirectory: '${{ parameters.workingDirectory }}'
       script: |
+        set -e
+        
         echo "=== Iniciando Terraform Apply ==="
-        terraform apply -auto-approve -no-color ${{ parameters.planFile }}
-        echo "=== Terraform Apply Completado ==="
+        
+        # Verificar que existe el plan file
+        if [ ! -f "${{ parameters.planFile }}" ]; then
+          echo "##[error]No se encontró el archivo de plan: ${{ parameters.planFile }}"
+          exit 1
+        fi
+        
+        # Ejecutar apply y capturar la salida
+        terraform apply -auto-approve -no-color ${{ parameters.planFile }} 2>&1 | tee apply_output.log
+        APPLY_EXIT_CODE=${PIPESTATUS[0]}
+        
+        # Verificar errores en la salida
+        if grep -q "Error:" apply_output.log; then
+          echo ""
+          echo "##[error]Se detectaron errores durante el apply:"
+          grep -A5 "Error:" apply_output.log
+          echo ""
+          echo "##[error]El apply falló con errores. Revise los logs arriba."
+          exit 1
+        fi
+        
+        # Verificar el exit code de terraform
+        if [ $APPLY_EXIT_CODE -ne 0 ]; then
+          echo "##[error]Terraform apply falló con exit code: $APPLY_EXIT_CODE"
+          exit $APPLY_EXIT_CODE
+        fi
+        
+        # Mostrar resumen
+        echo ""
+        echo "=== Terraform Apply Completado Exitosamente ==="
+        
+        # Mostrar outputs
+        echo ""
+        echo "=== Terraform Outputs ==="
+        terraform output -no-color 2>/dev/null || echo "No outputs definidos"
     env:
       AWS_ACCESS_KEY_ID: ${{ parameters.awsAccessKeyId }}
       AWS_SECRET_ACCESS_KEY: ${{ parameters.awsSecretAccessKey }}

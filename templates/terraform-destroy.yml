@@ -8,20 +8,103 @@ parameters:
     type: string
   - name: awsRegion
     type: string
+  - name: timeoutInMinutes
+    type: number
+    default: 30
 
 steps:
   - task: Bash@3
-    displayName: 'Terraform Destroy'
+    displayName: 'Pre-Destroy: Check Resources'
     inputs:
       targetType: 'inline'
       workingDirectory: '${{ parameters.workingDirectory }}'
       script: |
+        echo "=== Pre-Destroy: Verificando recursos existentes ==="
+        
+        # Verificar que terraform está inicializado
+        if [ ! -d ".terraform" ]; then
+          echo "##[error]Terraform no está inicializado. Ejecute terraform init primero."
+          exit 1
+        fi
+        
+        # Obtener lista de recursos
+        RESOURCE_COUNT=$(terraform state list 2>/dev/null | wc -l)
+        echo "Recursos en el state: $RESOURCE_COUNT"
+        
+        if [ "$RESOURCE_COUNT" -eq 0 ]; then
+          echo "##[warning]No hay recursos que destruir en el state."
+          echo "##vso[task.setvariable variable=skipDestroy]true"
+        else
+          echo "##vso[task.setvariable variable=skipDestroy]false"
+          terraform state list
+        fi
+    env:
+      AWS_ACCESS_KEY_ID: ${{ parameters.awsAccessKeyId }}
+      AWS_SECRET_ACCESS_KEY: ${{ parameters.awsSecretAccessKey }}
+      AWS_DEFAULT_REGION: ${{ parameters.awsRegion }}
+
+  - task: Bash@3
+    displayName: 'Terraform Destroy'
+    condition: ne(variables['skipDestroy'], 'true')
+    timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+    inputs:
+      targetType: 'inline'
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      script: |
+        set -e
+        
         echo "=== Iniciando Terraform Destroy ==="
-        terraform destroy -auto-approve -no-color
-        echo "=== Terraform Destroy Completado ==="
+        
+        # Ejecutar destroy y capturar la salida
+        terraform destroy -auto-approve -no-color 2>&1 | tee destroy_output.log
+        DESTROY_EXIT_CODE=${PIPESTATUS[0]}
+        
+        # Verificar errores en la salida
+        if grep -q "Error:" destroy_output.log; then
+          echo "##[error]Se detectaron errores durante el destroy:"
+          grep -A5 "Error:" destroy_output.log
+          echo ""
+          echo "##[error]El destroy falló con errores. Revise los logs arriba."
+          exit 1
+        fi
+        
+        # Verificar el exit code de terraform
+        if [ $DESTROY_EXIT_CODE -ne 0 ]; then
+          echo "##[error]Terraform destroy falló con exit code: $DESTROY_EXIT_CODE"
+          exit $DESTROY_EXIT_CODE
+        fi
+        
+        echo "=== Terraform Destroy Completado Exitosamente ==="
     env:
       AWS_ACCESS_KEY_ID: ${{ parameters.awsAccessKeyId }}
       AWS_SECRET_ACCESS_KEY: ${{ parameters.awsSecretAccessKey }}
       AWS_DEFAULT_REGION: ${{ parameters.awsRegion }}
       TF_IN_AUTOMATION: "true"
       TF_LOG: ""
+
+  - task: Bash@3
+    displayName: 'Post-Destroy: Verify State'
+    condition: and(succeeded(), ne(variables['skipDestroy'], 'true'))
+    inputs:
+      targetType: 'inline'
+      workingDirectory: '${{ parameters.workingDirectory }}'
+      script: |
+        echo "=== Post-Destroy: Verificando estado ==="
+        
+        # Verificar que no quedan recursos
+        REMAINING_RESOURCES=$(terraform state list 2>/dev/null | wc -l)
+        
+        if [ "$REMAINING_RESOURCES" -gt 0 ]; then
+          echo "##[warning]Aún quedan $REMAINING_RESOURCES recursos en el state:"
+          terraform state list
+          echo ""
+          echo "##[warning]Puede ser necesario ejecutar terraform destroy nuevamente."
+        else
+          echo "##[section]Todos los recursos han sido destruidos correctamente."
+        fi
+        
+        echo "=== Verificación completada ==="
+    env:
+      AWS_ACCESS_KEY_ID: ${{ parameters.awsAccessKeyId }}
+      AWS_SECRET_ACCESS_KEY: ${{ parameters.awsSecretAccessKey }}
+      AWS_DEFAULT_REGION: ${{ parameters.awsRegion }}
